@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/linearLayout_filesToOverwrite"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@id/button_checkAll"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textView_alertDialog"></LinearLayout>
+
+    <Button
+        android:id="@+id/button_checkAll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Check All"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/button_uncheckAll"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/linearLayout_filesToOverwrite" />
+
+    <Button
+        android:id="@+id/button_uncheckAll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Uncheck All"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/button_checkAll"
+        app:layout_constraintTop_toBottomOf="@id/linearLayout_filesToOverwrite" />
+
+    <TextView
+        android:id="@+id/textView_alertDialog"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="The following passwords already exist. Select the ones you want to overwrite."
+        app:layout_constraintBottom_toTopOf="@id/linearLayout_filesToOverwrite"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

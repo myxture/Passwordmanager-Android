@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_import"
+        android:orderInCategory="1"
+        android:title="Import"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_export"
+        android:orderInCategory="2"
+        android:title="Export"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_log"
+        android:orderInCategory="3"
+        android:title="Import/export log"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_dark_theme"
+        android:orderInCategory="4"
+        android:title="Dark theme"
+        android:checkable="true"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_confirm_passwords"
+        android:orderInCategory="5"
+        android:title="Confirm passwords"
+        android:checkable="true"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_show_passwords"
+        android:orderInCategory="6"
+        android:title="Show passwords"
+        android:checkable="true"
+        app:showAsAction="never" />
+</menu>

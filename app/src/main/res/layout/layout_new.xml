@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/constrainLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/textView_new_filename"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Filename:"
+                app:layout_constraintBaseline_toBaselineOf="@id/editText_new_filename"
+                app:layout_constraintEnd_toEndOf="@id/textView_new_passwordToStoreConfirm" />
+
+            <EditText
+                android:id="@+id/editText_new_filename"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:layout_marginEnd="5dp"
+                android:inputType="textPersonName"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/editText_new_passwordToStoreConfirm"
+                app:layout_constraintTop_toTopOf="parent" />
+
+
+            <TextView
+                android:id="@+id/textView_new_passwordToStore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Password to store:"
+                app:layout_constraintBaseline_toBaselineOf="@+id/editText_new_passwordToStore"
+                app:layout_constraintEnd_toEndOf="@id/textView_new_passwordToStoreConfirm" />
+
+            <EditText
+                android:id="@+id/editText_new_passwordToStore"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:inputType="textPassword"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/editText_new_passwordToStoreConfirm"
+                app:layout_constraintTop_toBottomOf="@+id/editText_new_filename" />
+
+
+            <TextView
+                android:id="@+id/textView_new_passwordToStoreConfirm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:text="Confirm password to store:"
+                app:layout_constraintBaseline_toBaselineOf="@+id/editText_new_passwordToStoreConfirm"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <EditText
+                android:id="@+id/editText_new_passwordToStoreConfirm"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:inputType="textPassword"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/textView_new_passwordToStoreConfirm"
+                app:layout_constraintTop_toBottomOf="@+id/editText_new_passwordToStore" />
+
+
+            <TextView
+                android:id="@+id/textView_new_masterPassword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Master password:"
+                app:layout_constraintBaseline_toBaselineOf="@+id/editText_new_masterPassword"
+                app:layout_constraintEnd_toEndOf="@id/textView_new_passwordToStoreConfirm" />
+
+            <EditText
+                android:id="@+id/editText_new_masterPassword"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:inputType="textPassword"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/editText_new_passwordToStoreConfirm"
+                app:layout_constraintTop_toBottomOf="@+id/editText_new_passwordToStoreConfirm" />
+
+
+            <TextView
+                android:id="@+id/textView_new_masterPasswordConfirm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Confirm master password:"
+                app:layout_constraintBaseline_toBaselineOf="@+id/editText_new_masterPasswordConfirm"
+                app:layout_constraintEnd_toEndOf="@id/textView_new_passwordToStoreConfirm" />
+
+            <EditText
+                android:id="@+id/editText_new_masterPasswordConfirm"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:inputType="textPassword"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/editText_new_passwordToStoreConfirm"
+                app:layout_constraintTop_toBottomOf="@+id/editText_new_masterPassword" />
+
+
+            <Button
+                android:id="@+id/button_new_storePassword"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="5dp"
+                android:text="Store it!"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/editText_new_masterPasswordConfirm" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
