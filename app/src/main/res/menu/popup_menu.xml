@@ -2,15 +2,19 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/action_rename"
+        android:id="@+id/action_modify"
         android:orderInCategory="1"
+        android:title="Modify" />
+    <item
+        android:id="@+id/action_rename"
+        android:orderInCategory="2"
         android:title="Rename" />
     <item
         android:id="@+id/action_delete"
-        android:orderInCategory="2"
+        android:orderInCategory="3"
         android:title="Delete" />
     <item
         android:id="@+id/action_export_single"
-        android:orderInCategory="3"
+        android:orderInCategory="4"
         android:title="Export" />
 </menu>

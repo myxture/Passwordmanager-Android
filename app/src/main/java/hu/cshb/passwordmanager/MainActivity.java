@@ -905,7 +905,14 @@ public class MainActivity extends AppCompatActivity {
                         popupMenu.setOnMenuItemClickListener(item -> {
                             String filename = ((TextView) v).getText().toString();
                             int itemId = item.getItemId();
-                            if (itemId == R.id.action_rename) {
+                            if (itemId == R.id.action_modify) {
+                                mActivityMainBinding.tabLayout.selectTab(mActivityMainBinding.tabLayout.getTabAt(0));
+                                mLayoutNewBinding.editTextNewFilename.setText(filename);
+                                mLayoutNewBinding.editTextNewPasswordToStore.setText("");
+                                mLayoutNewBinding.editTextNewPasswordToStoreConfirm.setText("");
+                                mLayoutNewBinding.editTextNewMasterPassword.setText("");
+                                mLayoutNewBinding.editTextNewMasterPasswordConfirm.setText("");
+                            } else if (itemId == R.id.action_rename) {
                                 EditText editText = new EditText(MainActivity.this);
                                 new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme))
                                         .setTitle("Rename password")
