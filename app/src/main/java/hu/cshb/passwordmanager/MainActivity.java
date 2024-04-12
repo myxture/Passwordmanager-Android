@@ -346,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
             for (String filename : mPasswordNames) {
                 destination = destinationDir.findFile(filename + ".pwd");
                 if (destination == null) {
-                    destination = destinationDir.createFile("unknown/unknown", filename + ".pwd");
+                    destination = destinationDir.createFile("*/*", filename + ".pwd");
                     try {
                         copy(new File(getFilesDir(), filename + ".pwd"), destination.getUri());
                         filesCopied.incrementAndGet();
@@ -440,7 +440,7 @@ public class MainActivity extends AppCompatActivity {
             }
             DocumentFile destination = destinationDir.findFile(mFileToExport + ".pwd");
             if (destination == null) {
-                destination = destinationDir.createFile("unknown/unknown", mFileToExport + ".pwd");
+                destination = destinationDir.createFile("*/*", mFileToExport + ".pwd");
                 try {
                     copy(new File(getFilesDir(), mFileToExport + ".pwd"), destination.getUri());
                     Toast.makeText(getApplicationContext(), "Successfully exported " + mFileToExport, Toast.LENGTH_LONG).show();
