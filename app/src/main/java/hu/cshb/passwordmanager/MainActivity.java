@@ -540,76 +540,75 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_import:
-                Intent importIntent = new Intent(Intent.ACTION_GET_CONTENT);
-                importIntent.addCategory(Intent.CATEGORY_OPENABLE);
-                importIntent.setType("*/*");
-                importIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-                startActivityForResult(importIntent, REQUEST_CODE_IMPORT);
-                return true;
-            case R.id.action_export:
-                Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                startActivityForResult(exportIntent, REQUEST_CODE_EXPORT);
-                return true;
-            case R.id.action_log:
-                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Last log message");
-                builder.setMessage(mLastLogMessage);
-                builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
-                builder.show();
-                return true;
-            case R.id.action_dark_theme:
-                boolean isDark = !item.isChecked();
-                mAppTheme = isDark ? R.style.AppThemeDark : R.style.AppThemeLight;
-                item.setChecked(isDark);
-                getPreferences(MODE_PRIVATE).edit().putBoolean("dark_theme", isDark).apply();
-                recreate();
-                return true;
-            case R.id.action_confirm_passwords:
-                mConfirmPasswords = !item.isChecked();
-                item.setChecked(mConfirmPasswords);
-                setConfirmPasswordsVisible(mConfirmPasswords);
-                getPreferences(MODE_PRIVATE).edit().putBoolean("confirm_passwords", mConfirmPasswords).apply();
+        int itemId = item.getItemId();
+        if (itemId == R.id.action_import) {
+            Intent importIntent = new Intent(Intent.ACTION_GET_CONTENT);
+            importIntent.addCategory(Intent.CATEGORY_OPENABLE);
+            importIntent.setType("*/*");
+            importIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            startActivityForResult(importIntent, REQUEST_CODE_IMPORT);
+            return true;
+        } else if (itemId == R.id.action_export) {
+            Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            startActivityForResult(exportIntent, REQUEST_CODE_EXPORT);
+            return true;
+        } else if (itemId == R.id.action_log) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Last log message");
+            builder.setMessage(mLastLogMessage);
+            builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
+            builder.show();
+            return true;
+        } else if (itemId == R.id.action_dark_theme) {
+            boolean isDark = !item.isChecked();
+            mAppTheme = isDark ? R.style.AppThemeDark : R.style.AppThemeLight;
+            item.setChecked(isDark);
+            getPreferences(MODE_PRIVATE).edit().putBoolean("dark_theme", isDark).apply();
+            recreate();
+            return true;
+        } else if (itemId == R.id.action_confirm_passwords) {
+            mConfirmPasswords = !item.isChecked();
+            item.setChecked(mConfirmPasswords);
+            setConfirmPasswordsVisible(mConfirmPasswords);
+            getPreferences(MODE_PRIVATE).edit().putBoolean("confirm_passwords", mConfirmPasswords).apply();
 
-                // Keep the menu open
-                item.setShowAsAction(MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
-                item.setActionView(new View(this));
-                item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
-                    @Override
-                    public boolean onMenuItemActionExpand(MenuItem item) {
-                        return false;
-                    }
+            // Keep the menu open
+            item.setShowAsAction(MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+            item.setActionView(new View(this));
+            item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(MenuItem item) {
+                    return false;
+                }
 
-                    @Override
-                    public boolean onMenuItemActionCollapse(MenuItem item) {
-                        return false;
-                    }
-                });
-                return false;
-            case R.id.action_show_passwords:
-                mShowPasswords = !item.isChecked();
-                item.setChecked(mShowPasswords);
-                setShowPasswords(mShowPasswords);
-                getPreferences(MODE_PRIVATE).edit().putBoolean("show_passwords", mShowPasswords).apply();
+                @Override
+                public boolean onMenuItemActionCollapse(MenuItem item) {
+                    return false;
+                }
+            });
+            return false;
+        } else if (itemId == R.id.action_show_passwords) {
+            mShowPasswords = !item.isChecked();
+            item.setChecked(mShowPasswords);
+            setShowPasswords(mShowPasswords);
+            getPreferences(MODE_PRIVATE).edit().putBoolean("show_passwords", mShowPasswords).apply();
 
-                // Keep the menu open
-                item.setShowAsAction(MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
-                item.setActionView(new View(this));
-                item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
-                    @Override
-                    public boolean onMenuItemActionExpand(MenuItem item) {
-                        return false;
-                    }
+            // Keep the menu open
+            item.setShowAsAction(MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+            item.setActionView(new View(this));
+            item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(MenuItem item) {
+                    return false;
+                }
 
-                    @Override
-                    public boolean onMenuItemActionCollapse(MenuItem item) {
-                        return false;
-                    }
-                });
-                return false;
-            default:
-                return super.onOptionsItemSelected(item);
+                @Override
+                public boolean onMenuItemActionCollapse(MenuItem item) {
+                    return false;
+                }
+            });
+            return false;
         }
+        return super.onOptionsItemSelected(item);
     }
 
     void setConfirmPasswordsVisible(boolean visible) {
@@ -965,56 +964,55 @@ public class MainActivity extends AppCompatActivity {
                         popupMenu.setOnMenuItemClickListener(item -> {
                             String filename = ((TextView) v).getText().toString();
                             AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme));
-                            switch (item.getItemId()) {
-                                case R.id.action_rename:
-                                    builder.setTitle("Rename password");
-                                    EditText editText = new EditText(MainActivity.this);
-                                    builder.setView(editText);
-                                    builder.setPositiveButton("Rename", (dialog, which) -> {
-                                        String newName = editText.getText().toString();
-                                        if (!newName.endsWith(".pwd"))
-                                            newName += ".pwd";
-                                        if (new File(getFilesDir(), filename + ".pwd").renameTo(new File(getFilesDir(), newName))) {
-                                            mPasswordNames.remove(filename);
-                                            mPasswordNames.add(newName.replace(".pwd", ""));
-                                            Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
-                                            mAdapter.notifyDataSetChanged();
-                                        } else
-                                            Toast.makeText(MainActivity.this, "Couldn't rename file!", Toast.LENGTH_LONG).show();
-                                        dialog.dismiss();
-                                    });
-                                    builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-                                    builder.show();
-                                    return true;
-                                case R.id.action_delete:
-                                    builder.setTitle("Confirm delete password");
-                                    builder.setMessage("Do you really want to delete " + filename + "?");
-                                    builder.setPositiveButton("Yes", (dialog, which) -> {
-                                        if (new File(getFilesDir(), filename + ".pwd").delete()) {
-                                            mPasswordNames.remove(filename);
-                                            if (mPasswordNames.isEmpty()) {
-                                                mPasswordNames.add(NO_PASSWORDS);
-                                            }
-                                            mAdapter.notifyDataSetChanged();
-                                            if (mPasswordNames.contains(NO_PASSWORDS)) {
-                                                mLayoutReadBinding.listView.setItemChecked(0, false);
-                                                mLayoutReadBinding.editTextReadMasterPassword.setEnabled(false);
-                                            }
-                                        } else
-                                            Toast.makeText(MainActivity.this, "File could not be deleted!", Toast.LENGTH_LONG).show();
-                                        dialog.dismiss();
-                                    });
-                                    builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
-                                    builder.show();
-                                    return true;
-                                case R.id.action_export_single:
-                                    Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                                    mFileToExport = filename;
-                                    startActivityForResult(exportIntent, REQUEST_CODE_EXPORT_SINGLE);
-                                    return true;
-                                default:
-                                    return false;
+                            int itemId = item.getItemId();
+                            if (itemId == R.id.action_rename) {
+                                builder.setTitle("Rename password");
+                                EditText editText = new EditText(MainActivity.this);
+                                builder.setView(editText);
+                                builder.setPositiveButton("Rename", (dialog, which) -> {
+                                    String newName = editText.getText().toString();
+                                    if (!newName.endsWith(".pwd"))
+                                        newName += ".pwd";
+                                    if (new File(getFilesDir(), filename + ".pwd").renameTo(new File(getFilesDir(), newName))) {
+                                        mPasswordNames.remove(filename);
+                                        mPasswordNames.add(newName.replace(".pwd", ""));
+                                        Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
+                                        mAdapter.notifyDataSetChanged();
+                                    } else
+                                        Toast.makeText(MainActivity.this, "Couldn't rename file!", Toast.LENGTH_LONG).show();
+                                    dialog.dismiss();
+                                });
+                                builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+                                builder.show();
+                                return true;
+                            } else if (itemId == R.id.action_delete) {
+                                builder.setTitle("Confirm delete password");
+                                builder.setMessage("Do you really want to delete " + filename + "?");
+                                builder.setPositiveButton("Yes", (dialog, which) -> {
+                                    if (new File(getFilesDir(), filename + ".pwd").delete()) {
+                                        mPasswordNames.remove(filename);
+                                        if (mPasswordNames.isEmpty()) {
+                                            mPasswordNames.add(NO_PASSWORDS);
+                                        }
+                                        mAdapter.notifyDataSetChanged();
+                                        if (mPasswordNames.contains(NO_PASSWORDS)) {
+                                            mLayoutReadBinding.listView.setItemChecked(0, false);
+                                            mLayoutReadBinding.editTextReadMasterPassword.setEnabled(false);
+                                        }
+                                    } else
+                                        Toast.makeText(MainActivity.this, "File could not be deleted!", Toast.LENGTH_LONG).show();
+                                    dialog.dismiss();
+                                });
+                                builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
+                                builder.show();
+                                return true;
+                            } else if (itemId == R.id.action_export_single) {
+                                Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                                mFileToExport = filename;
+                                startActivityForResult(exportIntent, REQUEST_CODE_EXPORT_SINGLE);
+                                return true;
                             }
+                            return false;
                         });
                         return true;
                     });
