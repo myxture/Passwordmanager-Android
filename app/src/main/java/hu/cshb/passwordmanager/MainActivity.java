@@ -832,10 +832,6 @@ public class MainActivity extends AppCompatActivity {
                                     .setMessage("A password named " + filename.replace(".pwd", "") + " already exists. Do you want to overwrite it?")
                                     .setPositiveButton("Yes", (dialog, which) -> {
                                         storePassword(passwordFile);
-                                        mPasswordNames.remove(NO_PASSWORDS);
-                                        mPasswordNames.add(passwordFile.getName().replace(".pwd", ""));
-                                        Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
-                                        mAdapter.notifyDataSetChanged();
                                         dialog.dismiss();
                                     })
                                     .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
@@ -912,6 +908,7 @@ public class MainActivity extends AppCompatActivity {
                                 mLayoutNewBinding.editTextNewPasswordToStoreConfirm.setText("");
                                 mLayoutNewBinding.editTextNewMasterPassword.setText("");
                                 mLayoutNewBinding.editTextNewMasterPasswordConfirm.setText("");
+                                mLayoutNewBinding.editTextNewPasswordToStore.requestFocus();
                             } else if (itemId == R.id.action_rename) {
                                 EditText editText = new EditText(MainActivity.this);
                                 new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme))
