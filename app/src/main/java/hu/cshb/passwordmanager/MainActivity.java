@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -30,6 +31,9 @@ import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StyleRes;
@@ -71,11 +75,6 @@ interface MarginSetter {
 }
 
 public class MainActivity extends AppCompatActivity {
-
-    private static final int REQUEST_CODE_IMPORT = 1;
-    private static final int REQUEST_CODE_EXPORT = 2;
-    private static final int REQUEST_CODE_EXPORT_SINGLE = 3;
-
     private static final char CHAR_LOWEST = 33;
     private static final char CHAR_HIGHEST = 126;
 
@@ -100,6 +99,10 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout.LayoutParams mDefaultSpaceLayoutParams;
 
     @StyleRes int mAppTheme;
+
+    ActivityResultLauncher<String[]> mActivityResultImport;
+    ActivityResultLauncher<Uri> mActivityResultExport;
+    ActivityResultLauncher<Uri> mActivityResultExportSingle;
 
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
@@ -220,6 +223,244 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
+        mActivityResultImport = registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+            Uri source;
+            Cursor cursor;
+            String filename;
+            List<Pair<Uri, File>> overwriteTasks = new ArrayList<>();
+            AtomicInteger filesCopied = new AtomicInteger(), skipped = new AtomicInteger(), unknown = new AtomicInteger(), total = new AtomicInteger();
+            for (int i = 0; i < uris.size(); ++i) {
+                source = uris.get(i);
+                filename = "";
+                if (Objects.equals(source.getScheme(), "content")) {
+                    cursor = getContentResolver().query(source, null, null, null, null);
+                    if (cursor != null) {
+                        cursor.moveToFirst();
+                        filename = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME));
+                        cursor.close();
+                    }
+                } else
+                    filename = source.getLastPathSegment();
+                if (filename != null) {
+                    if (!filename.endsWith(".pwd")) {
+                        unknown.incrementAndGet();
+                        total.incrementAndGet();
+                        continue;
+                    }
+                    File destination = new File(getFilesDir(), filename);
+                    if (destination.exists()) {
+                        overwriteTasks.add(new Pair<>(source, destination));
+                    } else {
+                        try {
+                            copy(source, destination);
+                            filesCopied.incrementAndGet();
+                            mPasswordNames.remove(NO_PASSWORDS);
+                            mPasswordNames.add(filename.replace(".pwd", ""));
+                        } catch (IOException ioe) {
+
+                        }
+                        total.incrementAndGet();
+                    }
+                } else
+                    total.incrementAndGet();
+            }
+            if (overwriteTasks.isEmpty()) {
+                sumUpImportExport(uris.size(), filesCopied.get(), unknown.get(), skipped.get(), "import");
+            } else {
+                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
+                View dialogView = getLayoutInflater().inflate(R.layout.alertdialog_mass_overwrite, null);
+                LinearLayout linearLayout = dialogView.findViewById(R.id.linearLayout_filesToOverwrite);
+                dialogView.findViewById(R.id.button_checkAll).setOnClickListener(v -> {
+                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                        View child = linearLayout.getChildAt(i);
+                        if (child instanceof CheckBox)
+                            ((CheckBox) child).setChecked(true);
+                    }
+                });
+                dialogView.findViewById(R.id.button_uncheckAll).setOnClickListener(v -> {
+                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                        View child = linearLayout.getChildAt(i);
+                        if (child instanceof CheckBox)
+                            ((CheckBox) child).setChecked(false);
+                    }
+                });
+
+                for (Pair<Uri, File> overwriteTask : overwriteTasks) {
+                    String fileToOverwrite = overwriteTask.second.getName();
+                    CheckBox checkBox = new CheckBox(getApplicationContext());
+                    checkBox.setText(fileToOverwrite.replace(".pwd", ""));
+                    checkBox.setTag(overwriteTask);
+                    linearLayout.addView(checkBox);
+                }
+
+                builder.setView(dialogView);
+                builder.setPositiveButton("OK", (dialog, which) -> {
+                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                        View child = linearLayout.getChildAt(i);
+                        if (child instanceof CheckBox) {
+                            CheckBox checkBox = (CheckBox) child;
+                            if (checkBox.isChecked()) {
+                                Pair<Uri, File> overwriteTask = (Pair<Uri, File>) checkBox.getTag();
+                                try {
+                                    copy(overwriteTask.first, overwriteTask.second);
+                                    filesCopied.incrementAndGet();
+                                } catch (IOException ioe) {
+
+                                }
+                                total.incrementAndGet();
+                            } else {
+                                skipped.incrementAndGet();
+                            }
+                        }
+                    }
+                    total.incrementAndGet();
+                    dialog.dismiss();
+                });
+                builder.setNegativeButton("Cancel", (dialog, which) -> {
+                    skipped.addAndGet(overwriteTasks.size());
+                    total.addAndGet(overwriteTasks.size());
+                    dialog.dismiss();
+                });
+                builder.setOnDismissListener(dialog -> sumUpImportExport(uris.size(), filesCopied.get(), unknown.get(), skipped.get(), "import"));
+                builder.show();
+            }
+        });
+
+        mActivityResultExport = registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), treeUri -> {
+            if (treeUri != null) {
+                DocumentFile root = DocumentFile.fromTreeUri(getApplicationContext(), treeUri);
+                if (root != null) {
+                    DocumentFile destinationDir = root.findFile("passwords");
+                    if (destinationDir == null) {
+                        root.createDirectory("passwords");
+                        destinationDir = root.findFile("passwords");
+                    } else if (destinationDir.isFile()) {
+                        Toast.makeText(getApplicationContext(), "Can't export to " + destinationDir.getName() + ": it's an existing file.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    DocumentFile destination;
+                    AtomicInteger filesCopied = new AtomicInteger(), unknown = new AtomicInteger(), skipped = new AtomicInteger(), total = new AtomicInteger();
+                    List<Pair<File, Uri>> overwriteTasks = new ArrayList<>();
+                    for (String filename : mPasswordNames) {
+                        destination = destinationDir.findFile(filename + ".pwd");
+                        if (destination == null) {
+                            destination = destinationDir.createFile("unknown/unknown", filename + ".pwd");
+                            try {
+                                copy(new File(getFilesDir(), filename + ".pwd"), destination.getUri());
+                                filesCopied.incrementAndGet();
+                            } catch (IOException ioe) {
+
+                            }
+                            total.incrementAndGet();
+                        } else {
+                            overwriteTasks.add(new Pair<>(new File(getFilesDir(), filename + ".pwd"), destination.getUri()));
+                        }
+                    }
+                    if (overwriteTasks.isEmpty()) {
+                        sumUpImportExport(mPasswordNames.size(), filesCopied.get(), unknown.get(), skipped.get(), "export");
+                    } else {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
+                        View dialogView = getLayoutInflater().inflate(R.layout.alertdialog_mass_overwrite, null);
+                        LinearLayout linearLayout = dialogView.findViewById(R.id.linearLayout_filesToOverwrite);
+                        dialogView.findViewById(R.id.button_checkAll).setOnClickListener(v -> {
+                            for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                                View child = linearLayout.getChildAt(i);
+                                if (child instanceof CheckBox)
+                                    ((CheckBox) child).setChecked(true);
+                            }
+                        });
+                        dialogView.findViewById(R.id.button_uncheckAll).setOnClickListener(v -> {
+                            for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                                View child = linearLayout.getChildAt(i);
+                                if (child instanceof CheckBox)
+                                    ((CheckBox) child).setChecked(false);
+                            }
+                        });
+
+                        for (Pair<File, Uri> overwriteTask : overwriteTasks) {
+                            String fileToOverwrite = overwriteTask.first.getName();
+                            CheckBox checkBox = new CheckBox(getApplicationContext());
+                            checkBox.setText(fileToOverwrite.replace(".pwd", ""));
+                            checkBox.setTag(overwriteTask);
+                            linearLayout.addView(checkBox);
+                        }
+
+                        builder.setView(dialogView);
+                        builder.setPositiveButton("OK", (dialog, which) -> {
+                            for (int i = 0; i < linearLayout.getChildCount(); ++i) {
+                                View child = linearLayout.getChildAt(i);
+                                if (child instanceof CheckBox) {
+                                    CheckBox checkBox = (CheckBox) child;
+                                    if (checkBox.isChecked()) {
+                                        Pair<File, Uri> overwriteTask = (Pair<File, Uri>) checkBox.getTag();
+                                        try {
+                                            copy(overwriteTask.first, overwriteTask.second);
+                                            filesCopied.incrementAndGet();
+                                        } catch (IOException ioe) {
+
+                                        }
+                                        total.incrementAndGet();
+                                    } else {
+                                        skipped.incrementAndGet();
+                                    }
+                                }
+                            }
+                            total.incrementAndGet();
+                            dialog.dismiss();
+                        });
+                        builder.setNegativeButton("Cancel", (dialog, which) -> {
+                            skipped.addAndGet(overwriteTasks.size());
+                            total.addAndGet(overwriteTasks.size());
+                            dialog.dismiss();
+                        });
+                        builder.setOnDismissListener(dialog -> sumUpImportExport(mPasswordNames.size(), filesCopied.get(), unknown.get(), skipped.get(), "export"));
+                        builder.show();
+                    }
+                }
+            }
+        });
+
+        mActivityResultExportSingle = registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), treeUri -> {
+            if (treeUri != null) {
+                DocumentFile root = DocumentFile.fromTreeUri(getApplicationContext(), treeUri);
+                if (root != null) {
+                    DocumentFile destinationDir = root.findFile("passwords");
+                    if (destinationDir == null) {
+                        root.createDirectory("passwords");
+                        destinationDir = root.findFile("passwords");
+                    } else if (destinationDir.isFile()) {
+                        Toast.makeText(getApplicationContext(), "Can't export to " + destinationDir.getName() + ": it's an existing file.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    DocumentFile destination = destinationDir.findFile(mFileToExport + ".pwd");
+                    if (destination == null) {
+                        destination = destinationDir.createFile("unknown/unknown", mFileToExport + ".pwd");
+                        try {
+                            copy(new File(getFilesDir(), mFileToExport + ".pwd"), destination.getUri());
+                            Toast.makeText(getApplicationContext(), "Successfully exported " + mFileToExport, Toast.LENGTH_LONG).show();
+                        } catch (IOException ioe) {
+                            Toast.makeText(getApplicationContext(), "Error exporting " + mFileToExport + ": " + ioe.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
+                        builder.setMessage("A password named " + mFileToExport.replace(".pwd", "") + " already exists. Do you want to overwrite it?");
+                        Uri finalDestination = destination.getUri();
+                        builder.setPositiveButton("Yes", (dialog, which) -> {
+                            try {
+                                copy(new File(getFilesDir(), mFileToExport + ".pwd"), finalDestination);
+                                Toast.makeText(getApplicationContext(), "Successfully exported " + mFileToExport, Toast.LENGTH_LONG).show();
+                            } catch (IOException ioe) {
+                                Toast.makeText(getApplicationContext(), "Error exporting " + mFileToExport + ": " + ioe.getMessage(), Toast.LENGTH_LONG).show();
+                            }
+                            dialog.dismiss();
+                        });
+                        builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
+                        builder.show();
+                    }
+                }
+            }
+        });
     }
 
     @Override
@@ -239,318 +480,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        switch (requestCode) {
-            case REQUEST_CODE_IMPORT:
-                if (data != null) {
-                    if (data.getClipData() != null) {
-                        ClipData clipData = data.getClipData();
-                        Uri source;
-                        Cursor cursor;
-                        String filename;
-                        List<Pair<Uri, File>> overwriteTasks = new ArrayList<>();
-                        AtomicInteger filesCopied = new AtomicInteger(), skipped = new AtomicInteger(), unknown = new AtomicInteger(), total = new AtomicInteger();
-                        for (int i = 0; i < clipData.getItemCount(); ++i) {
-                            source = clipData.getItemAt(i).getUri();
-                            filename = "";
-                            if (Objects.equals(source.getScheme(), "content")) {
-                                cursor = getContentResolver().query(source, null, null, null, null);
-                                if (cursor != null) {
-                                    cursor.moveToFirst();
-                                    filename = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME));
-                                    cursor.close();
-                                }
-                            } else
-                                filename = source.getLastPathSegment();
-                            if (filename != null) {
-                                if (!filename.endsWith(".pwd")) {
-                                    unknown.incrementAndGet();
-                                    total.incrementAndGet();
-                                    continue;
-                                }
-                                File destination = new File(getFilesDir(), filename);
-                                if (destination.exists()) {
-                                    overwriteTasks.add(new Pair<>(source, destination));
-                                } else {
-                                    try {
-                                        copy(source, destination);
-                                        filesCopied.incrementAndGet();
-                                        mPasswordNames.remove(NO_PASSWORDS);
-                                        mPasswordNames.add(filename.replace(".pwd", ""));
-                                    } catch (IOException ioe) {
-
-                                    }
-                                    total.incrementAndGet();
-                                }
-                            } else
-                                total.incrementAndGet();
-                        }
-                        if (overwriteTasks.isEmpty()) {
-                            sumUpImportExport(clipData.getItemCount(), filesCopied.get(), unknown.get(), skipped.get(), "import");
-                        } else {
-                            AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
-                            View dialogView = getLayoutInflater().inflate(R.layout.alertdialog_mass_overwrite, null);
-                            LinearLayout linearLayout = dialogView.findViewById(R.id.linearLayout_filesToOverwrite);
-                            dialogView.findViewById(R.id.button_checkAll).setOnClickListener(v -> {
-                                for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                    View child = linearLayout.getChildAt(i);
-                                    if (child instanceof CheckBox)
-                                        ((CheckBox) child).setChecked(true);
-                                }
-                            });
-                            dialogView.findViewById(R.id.button_uncheckAll).setOnClickListener(v -> {
-                                for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                    View child = linearLayout.getChildAt(i);
-                                    if (child instanceof CheckBox)
-                                        ((CheckBox) child).setChecked(false);
-                                }
-                            });
-
-                            for (Pair<Uri, File> overwriteTask : overwriteTasks) {
-                                String fileToOverwrite = overwriteTask.second.getName();
-                                CheckBox checkBox = new CheckBox(this);
-                                checkBox.setText(fileToOverwrite.replace(".pwd", ""));
-                                checkBox.setTag(overwriteTask);
-                                linearLayout.addView(checkBox);
-                            }
-
-                            builder.setView(dialogView);
-                            builder.setPositiveButton("OK", (dialog, which) -> {
-                                for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                    View child = linearLayout.getChildAt(i);
-                                    if (child instanceof CheckBox) {
-                                        CheckBox checkBox = (CheckBox) child;
-                                        if (checkBox.isChecked()) {
-                                            Pair<Uri, File> overwriteTask = (Pair<Uri, File>) checkBox.getTag();
-                                            try {
-                                                copy(overwriteTask.first, overwriteTask.second);
-                                                filesCopied.incrementAndGet();
-                                            } catch (IOException ioe) {
-
-                                            }
-                                            total.incrementAndGet();
-                                        } else {
-                                            skipped.incrementAndGet();
-                                        }
-                                    }
-                                }
-                                total.incrementAndGet();
-                                dialog.dismiss();
-                            });
-                            builder.setNegativeButton("Cancel", (dialog, which) -> {
-                                skipped.addAndGet(overwriteTasks.size());
-                                total.addAndGet(overwriteTasks.size());
-                                dialog.dismiss();
-                            });
-                            builder.setOnDismissListener(dialog -> sumUpImportExport(clipData.getItemCount(), filesCopied.get(), unknown.get(), skipped.get(), "import"));
-                            builder.show();
-                        }
-                        break;
-                    } else if (data.getData() != null) {
-                        Uri source = data.getData();
-                        String filename = "";
-                        if (Objects.equals(source.getScheme(), "content")) {
-                            Cursor cursor = getContentResolver().query(source, null, null, null, null);
-                            if (cursor != null) {
-                                cursor.moveToFirst();
-                                filename = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME));
-                                cursor.close();
-                            }
-                        } else
-                            filename = source.getLastPathSegment();
-                        if (filename != null) {
-                            if (!filename.endsWith(".pwd")) {
-                                sumUpImportExport(1, 0, 1, 0, "import");
-                                break;
-                            }
-                            File destination = new File(getFilesDir(), filename);
-                            if (destination.exists()) {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
-                                builder.setMessage("A password named " + filename.replace(".pwd", "") + " already exists. Do you want to overwrite it?");
-                                builder.setPositiveButton("Yes", (dialog, which) -> {
-                                    try {
-                                        copy(source, destination);
-                                        sumUpImportExport(1, 1, 0, 0, "import");
-                                    } catch (IOException ioe) {
-                                        sumUpImportExport(1, 0, 0, 0, "import");
-                                    }
-                                    dialog.dismiss();
-                                });
-                                builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
-                                builder.show();
-                                break;
-                            } else {
-                                try {
-                                    copy(source, destination);
-                                    mPasswordNames.remove(NO_PASSWORDS);
-                                    mPasswordNames.add(filename.replace(".pwd", ""));
-                                    sumUpImportExport(1, 1, 0, 0, "import");
-                                } catch (IOException ioe) {
-                                    sumUpImportExport(1, 0, 0, 0, "import");
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-                break;
-            case REQUEST_CODE_EXPORT:
-                if (data != null) {
-                    Uri treeUri = data.getData();
-                    if (treeUri != null) {
-                        DocumentFile root = DocumentFile.fromTreeUri(this, treeUri);
-                        if (root != null) {
-                            DocumentFile destinationDir = root.findFile("passwords");
-                            if (destinationDir == null) {
-                                root.createDirectory("passwords");
-                                destinationDir = root.findFile("passwords");
-                            } else if (destinationDir.isFile()) {
-                                Toast.makeText(this, "Can't export to " + destinationDir.getName() + ": it's an existing file.", Toast.LENGTH_LONG).show();
-                                break;
-                            }
-                            DocumentFile destination;
-                            AtomicInteger filesCopied = new AtomicInteger(), unknown = new AtomicInteger(), skipped = new AtomicInteger(), total = new AtomicInteger();
-                            List<Pair<File, Uri>> overwriteTasks = new ArrayList<>();
-                            for (String filename : mPasswordNames) {
-                                destination = destinationDir.findFile(filename + ".pwd");
-                                if (destination == null) {
-                                    destination = destinationDir.createFile("unknown/unknown", filename + ".pwd");
-                                    try {
-                                        copy(new File(getFilesDir(), filename + ".pwd"), destination.getUri());
-                                        filesCopied.incrementAndGet();
-                                    } catch (IOException ioe) {
-
-                                    }
-                                    total.incrementAndGet();
-                                } else {
-                                    overwriteTasks.add(new Pair<>(new File(getFilesDir(), filename + ".pwd"), destination.getUri()));
-                                }
-                            }
-                            if (overwriteTasks.isEmpty()) {
-                                sumUpImportExport(mPasswordNames.size(), filesCopied.get(), unknown.get(), skipped.get(), "export");
-                            } else {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
-                                View dialogView = getLayoutInflater().inflate(R.layout.alertdialog_mass_overwrite, null);
-                                LinearLayout linearLayout = dialogView.findViewById(R.id.linearLayout_filesToOverwrite);
-                                dialogView.findViewById(R.id.button_checkAll).setOnClickListener(v -> {
-                                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                        View child = linearLayout.getChildAt(i);
-                                        if (child instanceof CheckBox)
-                                            ((CheckBox) child).setChecked(true);
-                                    }
-                                });
-                                dialogView.findViewById(R.id.button_uncheckAll).setOnClickListener(v -> {
-                                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                        View child = linearLayout.getChildAt(i);
-                                        if (child instanceof CheckBox)
-                                            ((CheckBox) child).setChecked(false);
-                                    }
-                                });
-
-                                for (Pair<File, Uri> overwriteTask : overwriteTasks) {
-                                    String fileToOverwrite = overwriteTask.first.getName();
-                                    CheckBox checkBox = new CheckBox(this);
-                                    checkBox.setText(fileToOverwrite.replace(".pwd", ""));
-                                    checkBox.setTag(overwriteTask);
-                                    linearLayout.addView(checkBox);
-                                }
-
-                                builder.setView(dialogView);
-                                builder.setPositiveButton("OK", (dialog, which) -> {
-                                    for (int i = 0; i < linearLayout.getChildCount(); ++i) {
-                                        View child = linearLayout.getChildAt(i);
-                                        if (child instanceof CheckBox) {
-                                            CheckBox checkBox = (CheckBox) child;
-                                            if (checkBox.isChecked()) {
-                                                Pair<File, Uri> overwriteTask = (Pair<File, Uri>) checkBox.getTag();
-                                                try {
-                                                    copy(overwriteTask.first, overwriteTask.second);
-                                                    filesCopied.incrementAndGet();
-                                                } catch (IOException ioe) {
-
-                                                }
-                                                total.incrementAndGet();
-                                            } else {
-                                                skipped.incrementAndGet();
-                                            }
-                                        }
-                                    }
-                                    total.incrementAndGet();
-                                    dialog.dismiss();
-                                });
-                                builder.setNegativeButton("Cancel", (dialog, which) -> {
-                                    skipped.addAndGet(overwriteTasks.size());
-                                    total.addAndGet(overwriteTasks.size());
-                                    dialog.dismiss();
-                                });
-                                builder.setOnDismissListener(dialog -> sumUpImportExport(mPasswordNames.size(), filesCopied.get(), unknown.get(), skipped.get(), "export"));
-                                builder.show();
-                            }
-                        }
-                    }
-                }
-                break;
-            case REQUEST_CODE_EXPORT_SINGLE:
-                if (data != null) {
-                    Uri treeUri = data.getData();
-                    if (treeUri != null) {
-                        DocumentFile root = DocumentFile.fromTreeUri(this, treeUri);
-                        if (root != null) {
-                            DocumentFile destinationDir = root.findFile("passwords");
-                            if (destinationDir == null) {
-                                root.createDirectory("passwords");
-                                destinationDir = root.findFile("passwords");
-                            } else if (destinationDir.isFile()) {
-                                Toast.makeText(this, "Can't export to " + destinationDir.getName() + ": it's an existing file.", Toast.LENGTH_LONG).show();
-                                break;
-                            }
-                            DocumentFile destination = destinationDir.findFile(mFileToExport + ".pwd");
-                            if (destination == null) {
-                                destination = destinationDir.createFile("unknown/unknown", mFileToExport + ".pwd");
-                                try {
-                                    copy(new File(getFilesDir(), mFileToExport + ".pwd"), destination.getUri());
-                                    Toast.makeText(this, "Successfully exported " + mFileToExport, Toast.LENGTH_LONG).show();
-                                } catch (IOException ioe) {
-                                    Toast.makeText(this, "Error exporting " + mFileToExport + ": " + ioe.getMessage(), Toast.LENGTH_LONG).show();
-                                }
-                            } else {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Confirm overwrite file");
-                                builder.setMessage("A password named " + mFileToExport.replace(".pwd", "") + " already exists. Do you want to overwrite it?");
-                                Uri finalDestination = destination.getUri();
-                                builder.setPositiveButton("Yes", (dialog, which) -> {
-                                    try {
-                                        copy(new File(getFilesDir(), mFileToExport + ".pwd"), finalDestination);
-                                        Toast.makeText(this, "Successfully exported " + mFileToExport, Toast.LENGTH_LONG).show();
-                                    } catch (IOException ioe) {
-                                        Toast.makeText(this, "Error exporting " + mFileToExport + ": " + ioe.getMessage(), Toast.LENGTH_LONG).show();
-                                    }
-                                    dialog.dismiss();
-                                });
-                                builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
-                                builder.show();
-                            }
-                        }
-                    }
-                }
-                break;
-            default:
-                super.onActivityResult(requestCode, resultCode, data);
-        }
-    }
-
-    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == R.id.action_import) {
-            Intent importIntent = new Intent(Intent.ACTION_GET_CONTENT);
-            importIntent.addCategory(Intent.CATEGORY_OPENABLE);
-            importIntent.setType("*/*");
-            importIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            startActivityForResult(importIntent, REQUEST_CODE_IMPORT);
+            String[] mimeTypes = { "*/*" };
+            mActivityResultImport.launch(mimeTypes);
             return true;
         } else if (itemId == R.id.action_export) {
-            Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            startActivityForResult(exportIntent, REQUEST_CODE_EXPORT);
+            Uri initialUri = Uri.parse(Environment.getExternalStorageDirectory().toURI().toString());
+            mActivityResultExport.launch(initialUri);
             return true;
         } else if (itemId == R.id.action_log) {
             AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme)).setTitle("Last log message");
@@ -1007,9 +945,9 @@ public class MainActivity extends AppCompatActivity {
                                 builder.show();
                                 return true;
                             } else if (itemId == R.id.action_export_single) {
-                                Intent exportIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
                                 mFileToExport = filename;
-                                startActivityForResult(exportIntent, REQUEST_CODE_EXPORT_SINGLE);
+                                Uri initialUri = Uri.parse(Environment.getExternalStorageDirectory().toURI().toString());
+                                mActivityResultExportSingle.launch(initialUri);
                                 return true;
                             }
                             return false;
