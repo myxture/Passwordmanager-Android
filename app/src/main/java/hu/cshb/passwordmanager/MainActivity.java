@@ -517,12 +517,12 @@ public class MainActivity extends AppCompatActivity {
             item.setActionView(new View(this));
             item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
                 @Override
-                public boolean onMenuItemActionExpand(MenuItem item) {
+                public boolean onMenuItemActionExpand(@NonNull MenuItem item) {
                     return false;
                 }
 
                 @Override
-                public boolean onMenuItemActionCollapse(MenuItem item) {
+                public boolean onMenuItemActionCollapse(@NonNull MenuItem item) {
                     return false;
                 }
             });
@@ -538,12 +538,12 @@ public class MainActivity extends AppCompatActivity {
             item.setActionView(new View(this));
             item.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
                 @Override
-                public boolean onMenuItemActionExpand(MenuItem item) {
+                public boolean onMenuItemActionExpand(@NonNull MenuItem item) {
                     return false;
                 }
 
                 @Override
-                public boolean onMenuItemActionCollapse(MenuItem item) {
+                public boolean onMenuItemActionCollapse(@NonNull MenuItem item) {
                     return false;
                 }
             });
@@ -827,19 +827,19 @@ public class MainActivity extends AppCompatActivity {
                             filename += ".pwd";
                         File passwordFile = new File(getFilesDir(), filename);
                         if (passwordFile.exists()) {
-                            AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme));
-                            builder.setTitle("Confirm overwrite file");
-                            builder.setMessage("A password named " + filename.replace(".pwd", "") + " already exists. Do you want to overwrite it?");
-                            builder.setPositiveButton("Yes", (dialog, which) -> {
-                                storePassword(passwordFile);
-                                mPasswordNames.remove(NO_PASSWORDS);
-                                mPasswordNames.add(passwordFile.getName().replace(".pwd", ""));
-                                Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
-                                mAdapter.notifyDataSetChanged();
-                                dialog.dismiss();
-                            });
-                            builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
-                            builder.show();
+                            new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme))
+                                    .setTitle("Confirm overwrite file")
+                                    .setMessage("A password named " + filename.replace(".pwd", "") + " already exists. Do you want to overwrite it?")
+                                    .setPositiveButton("Yes", (dialog, which) -> {
+                                        storePassword(passwordFile);
+                                        mPasswordNames.remove(NO_PASSWORDS);
+                                        mPasswordNames.add(passwordFile.getName().replace(".pwd", ""));
+                                        Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
+                                        mAdapter.notifyDataSetChanged();
+                                        dialog.dismiss();
+                                    })
+                                    .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                                    .show();
                         } else {
                             storePassword(passwordFile);
                             mPasswordNames.remove(NO_PASSWORDS);
@@ -904,48 +904,49 @@ public class MainActivity extends AppCompatActivity {
                         popupMenu.show();
                         popupMenu.setOnMenuItemClickListener(item -> {
                             String filename = ((TextView) v).getText().toString();
-                            AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme));
                             int itemId = item.getItemId();
                             if (itemId == R.id.action_rename) {
-                                builder.setTitle("Rename password");
                                 EditText editText = new EditText(MainActivity.this);
-                                builder.setView(editText);
-                                builder.setPositiveButton("Rename", (dialog, which) -> {
-                                    String newName = editText.getText().toString();
-                                    if (!newName.endsWith(".pwd"))
-                                        newName += ".pwd";
-                                    if (new File(getFilesDir(), filename + ".pwd").renameTo(new File(getFilesDir(), newName))) {
-                                        mPasswordNames.remove(filename);
-                                        mPasswordNames.add(newName.replace(".pwd", ""));
-                                        Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
-                                        mAdapter.notifyDataSetChanged();
-                                    } else
-                                        Toast.makeText(MainActivity.this, "Couldn't rename file!", Toast.LENGTH_LONG).show();
-                                    dialog.dismiss();
-                                });
-                                builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-                                builder.show();
+                                new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme))
+                                        .setTitle("Rename password")
+                                        .setView(editText)
+                                        .setPositiveButton("Rename", (dialog, which) -> {
+                                            String newName = editText.getText().toString();
+                                            if (!newName.endsWith(".pwd"))
+                                                newName += ".pwd";
+                                            if (new File(getFilesDir(), filename + ".pwd").renameTo(new File(getFilesDir(), newName))) {
+                                                mPasswordNames.remove(filename);
+                                                mPasswordNames.add(newName.replace(".pwd", ""));
+                                                Collections.sort(mPasswordNames, String.CASE_INSENSITIVE_ORDER);
+                                                mAdapter.notifyDataSetChanged();
+                                            } else
+                                                Toast.makeText(MainActivity.this, "Couldn't rename file!", Toast.LENGTH_LONG).show();
+                                            dialog.dismiss();
+                                        })
+                                        .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                                        .show();
                                 return true;
                             } else if (itemId == R.id.action_delete) {
-                                builder.setTitle("Confirm delete password");
-                                builder.setMessage("Do you really want to delete " + filename + "?");
-                                builder.setPositiveButton("Yes", (dialog, which) -> {
-                                    if (new File(getFilesDir(), filename + ".pwd").delete()) {
-                                        mPasswordNames.remove(filename);
-                                        if (mPasswordNames.isEmpty()) {
-                                            mPasswordNames.add(NO_PASSWORDS);
-                                        }
-                                        mAdapter.notifyDataSetChanged();
-                                        if (mPasswordNames.contains(NO_PASSWORDS)) {
-                                            mLayoutReadBinding.listView.setItemChecked(0, false);
-                                            mLayoutReadBinding.editTextReadMasterPassword.setEnabled(false);
-                                        }
-                                    } else
-                                        Toast.makeText(MainActivity.this, "File could not be deleted!", Toast.LENGTH_LONG).show();
-                                    dialog.dismiss();
-                                });
-                                builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
-                                builder.show();
+                                new AlertDialog.Builder(new ContextThemeWrapper(MainActivity.this, mAppTheme))
+                                        .setTitle("Confirm delete password")
+                                        .setMessage("Do you really want to delete " + filename + "?")
+                                        .setPositiveButton("Yes", (dialog, which) -> {
+                                            if (new File(getFilesDir(), filename + ".pwd").delete()) {
+                                                mPasswordNames.remove(filename);
+                                                if (mPasswordNames.isEmpty()) {
+                                                    mPasswordNames.add(NO_PASSWORDS);
+                                                }
+                                                mAdapter.notifyDataSetChanged();
+                                                if (mPasswordNames.contains(NO_PASSWORDS)) {
+                                                    mLayoutReadBinding.listView.setItemChecked(0, false);
+                                                    mLayoutReadBinding.editTextReadMasterPassword.setEnabled(false);
+                                                }
+                                            } else
+                                                Toast.makeText(MainActivity.this, "File could not be deleted!", Toast.LENGTH_LONG).show();
+                                            dialog.dismiss();
+                                        })
+                                        .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                                        .show();
                                 return true;
                             } else if (itemId == R.id.action_export_single) {
                                 mFileToExport = filename;
@@ -1077,9 +1078,7 @@ public class MainActivity extends AppCompatActivity {
                             mLayoutGenerateBinding.buttonGenerateStorePassword.setEnabled(s.length() > 0);
                         }
                     });
-                    mLayoutGenerateBinding.imageButtonRegeneratePassword.setOnClickListener(v -> {
-                        generatePassword();
-                    });
+                    mLayoutGenerateBinding.imageButtonRegeneratePassword.setOnClickListener(v -> generatePassword());
                     mLayoutGenerateBinding.imageButtonRegeneratePassword.setEnabled(false);
                     mLayoutGenerateBinding.buttonGenerateStorePassword.setOnClickListener(v -> {
                         mActivityMainBinding.tabLayout.selectTab(mActivityMainBinding.tabLayout.getTabAt(0));
@@ -1090,11 +1089,8 @@ public class MainActivity extends AppCompatActivity {
                         mLayoutNewBinding.editTextNewMasterPasswordConfirm.setText("");
                     });
                     view = mLayoutGenerateBinding.getRoot();
-                    view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-                        @Override
-                        public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                    view.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
 
-                        }
                     });
                     break;
                 default:
@@ -1154,7 +1150,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        class ViewHolder extends RecyclerView.ViewHolder {
+        public class ViewHolder extends RecyclerView.ViewHolder {
             ViewHolder(@NonNull View itemView) {
                 super(itemView);
             }
